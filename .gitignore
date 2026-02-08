@@ -18,6 +18,9 @@ downloads/
 # 输出结果
 output/
 *.txt
+
+# 缓存文件
+cache/
 *.json
 
 # 配置文件（包含 API Key）

@@ -15,10 +15,11 @@ class BilibiliDownloader:
         self.download_dir = download_dir
         os.makedirs(download_dir, exist_ok=True)
     
-    def download_audio(self, bv_id):
+    def download_audio(self, bv_id, force_download=False):
         """
-        下载B站视频的音频
+        下载B站视频的音频（带缓存机制）
         :param bv_id: B站视频的BV号（如 BV1xx411c7mD）
+        :param force_download: 是否强制重新下载（忽略缓存）
         :return: 下载的音频文件路径
         """
         # 构造B站视频URL
@@ -29,6 +30,18 @@ class BilibiliDownloader:
         
         # 输出文件路径
         output_path = os.path.join(self.download_dir, f"{bv_id}.mp3")
+        
+        # 检查缓存
+        if not force_download and os.path.exists(output_path):
+            file_size = os.path.getsize(output_path)
+            if file_size > 0:
+                print(f"[缓存] 发现已下载的音频文件: {output_path}")
+                print(f"[缓存] 文件大小: {file_size / 1024 / 1024:.2f} MB")
+                print(f"[缓存] 跳过下载，直接使用缓存")
+                return output_path
+            else:
+                print(f"[警告] 发现空文件，将重新下载")
+                os.remove(output_path)
         
         # yt-dlp 配置
         ydl_opts = {
@@ -48,11 +61,19 @@ class BilibiliDownloader:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             
-            print(f"[下载] 完成！音频保存至: {output_path}")
-            return output_path
+            # 验证下载完成
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                print(f"[下载] 完成！音频保存至: {output_path}")
+                print(f"[下载] 文件大小: {os.path.getsize(output_path) / 1024 / 1024:.2f} MB")
+                return output_path
+            else:
+                raise Exception("下载完成但文件不存在或为空")
         
         except Exception as e:
             print(f"[错误] 下载失败: {str(e)}")
+            # 清理可能的损坏文件
+            if os.path.exists(output_path):
+                os.remove(output_path)
             raise
 
 

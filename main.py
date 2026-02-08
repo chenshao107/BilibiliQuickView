@@ -59,12 +59,12 @@ def process_video(bv_id):
     print("=" * 60 + "\n")
     
     try:
-        # 步骤1: 下载音频
+        # 步骤1: 下载音频（带缓存）
         print("📥 [1/3] 下载视频音频...")
         downloader = BilibiliDownloader()
         audio_path = downloader.download_audio(bv_id)
         
-        # 步骤2: 音频转文字
+        # 步骤2: 音频转文字（带缓存）
         print("\n🎤 [2/3] 语音识别转录...")
         asr = SenseVoiceASR()
         transcript = asr.transcribe(audio_path)
@@ -81,7 +81,7 @@ def process_video(bv_id):
         # 保存结果
         output_file = save_result(bv_id, transcript, analysis)
         
-        # 在控制台显示分析结果
+        # 在控制台显示AI分析结果
         print("\n" + "=" * 60)
         print("📊 AI 分析结果")
         print("=" * 60)

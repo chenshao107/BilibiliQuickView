@@ -8,6 +8,11 @@ from datetime import datetime
 from downloader import BilibiliDownloader
 from asr import SenseVoiceASR
 from summarizer import DeepSeekSummarizer
+from bilibili_api import BilibiliAPI, get_sessdata_guide
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 
 def save_result(bv_id, transcript, analysis):
@@ -91,6 +96,107 @@ def process_video(bv_id):
         traceback.print_exc()
 
 
+def process_watchlater_batch():
+    """
+    批量处理稍后再看列表
+    """
+    print("\n" + "=" * 60)
+    print("📋 批量处理稍后再看")
+    print("=" * 60 + "\n")
+    
+    # 获取 SESSDATA
+    sessdata = os.getenv("BILIBILI_SESSDATA")
+    if not sessdata:
+        print("❌ 错误：未配置 BILIBILI_SESSDATA")
+        print("\n请先在 .env 文件中配置你的 B站 SESSDATA：")
+        get_sessdata_guide()
+        return
+    
+    try:
+        # 获取稍后再看列表
+        print("📥 正在获取稍后再看列表...")
+        api = BilibiliAPI(sessdata)
+        videos = api.get_watchlater_list()
+        
+        if not videos:
+            print("\n✅ 稍后再看列表为空，无需处理")
+            return
+        
+        # 显示视频列表
+        print("\n" + "=" * 60)
+        print(f"发现 {len(videos)} 个视频：")
+        print("=" * 60)
+        for i, video in enumerate(videos, 1):
+            duration_min = video['duration'] // 60
+            print(f"{i}. [{video['bvid']}] {video['title']}")
+            print(f"   UP主: {video['owner']} | 时长: {duration_min}分钟")
+        print("=" * 60 + "\n")
+        
+        # 询问是否批量处理
+        choice = input("是否批量处理这些视频？(y/n，或输入序号范围如 1-5): ").strip().lower()
+        
+        if choice == 'n':
+            print("👋 已取消")
+            return
+        
+        # 确定要处理的视频
+        to_process = []
+        if choice == 'y':
+            to_process = videos
+        elif '-' in choice:
+            # 处理范围输入（如 1-5）
+            try:
+                start, end = map(int, choice.split('-'))
+                to_process = videos[start-1:end]
+            except:
+                print("❌ 无效的范围格式")
+                return
+        elif choice.isdigit():
+            # 单个序号
+            idx = int(choice) - 1
+            if 0 <= idx < len(videos):
+                to_process = [videos[idx]]
+        else:
+            print("❌ 无效的输入")
+            return
+        
+        # 批量处理
+        print(f"\n🚀 开始批量处理 {len(to_process)} 个视频...\n")
+        success_count = 0
+        fail_count = 0
+        
+        for i, video in enumerate(to_process, 1):
+            print(f"\n{'='*60}")
+            print(f"处理进度: {i}/{len(to_process)}")
+            print(f"{'='*60}")
+            
+            try:
+                process_video(video['bvid'])
+                success_count += 1
+            except Exception as e:
+                print(f"❌ 处理失败: {str(e)}")
+                fail_count += 1
+            
+            # 避免请求过快
+            if i < len(to_process):
+                print("\n⏳ 等待 3 秒后继续...")
+                import time
+                time.sleep(3)
+        
+        # 总结
+        print("\n" + "=" * 60)
+        print("📊 批量处理完成！")
+        print("=" * 60)
+        print(f"✅ 成功: {success_count} 个")
+        print(f"❌ 失败: {fail_count} 个")
+        print("=" * 60 + "\n")
+    
+    except Exception as e:
+        print(f"\n❌ 批量处理失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+
 def main():
     """
     主程序入口
@@ -101,25 +207,49 @@ def main():
     
     if len(sys.argv) > 1:
         # 命令行参数模式
-        bv_id = sys.argv[1]
-        process_video(bv_id)
+        if sys.argv[1] == "--watchlater" or sys.argv[1] == "-w":
+            # 批量处理稍后再看
+            process_watchlater_batch()
+        else:
+            # 处理单个BV号
+            bv_id = sys.argv[1]
+            process_video(bv_id)
     else:
         # 交互模式
-        print("请输入B站视频的BV号（输入 'q' 退出）：")
-        while True:
-            bv_id = input("\nBV号 > ").strip()
-            
-            if bv_id.lower() == 'q':
-                print("👋 再见！")
-                break
-            
-            if not bv_id:
-                print("⚠️ 请输入有效的BV号")
-                continue
-            
-            process_video(bv_id)
-            print("\n" + "-" * 60)
-            print("继续输入BV号，或输入 'q' 退出")
+        print("选择模式：")
+        print("  1. 输入单个BV号")
+        print("  2. 批量处理稍后再看")
+        print("  q. 退出\n")
+        
+        mode = input("请选择 (1/2/q): ").strip()
+        
+        if mode == '1':
+            # 单个BV号模式
+            print("\n请输入B站视频的BV号（输入 'q' 返回）：")
+            while True:
+                bv_id = input("\nBV号 > ").strip()
+                
+                if bv_id.lower() == 'q':
+                    print("👋 再见！")
+                    break
+                
+                if not bv_id:
+                    print("⚠️ 请输入有效的BV号")
+                    continue
+                
+                process_video(bv_id)
+                print("\n" + "-" * 60)
+                print("继续输入BV号，或输入 'q' 退出")
+        
+        elif mode == '2':
+            # 批量处理模式
+            process_watchlater_batch()
+        
+        elif mode.lower() == 'q':
+            print("👋 再见！")
+        
+        else:
+            print("❌ 无效的选择")
 
 
 if __name__ == "__main__":

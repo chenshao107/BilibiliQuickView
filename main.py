@@ -26,22 +26,20 @@ def save_result(bv_id, transcript, analysis):
     os.makedirs(output_dir, exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = os.path.join(output_dir, f"{bv_id}_{timestamp}.txt")
+    output_file = os.path.join(output_dir, f"{bv_id}_{timestamp}.md")
     
     with open(output_file, "w", encoding="utf-8") as f:
-        f.write("=" * 60 + "\n")
-        f.write(f"B站视频快速分析报告\n")
-        f.write(f"视频BV号: {bv_id}\n")
-        f.write(f"分析时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write("=" * 60 + "\n\n")
+        f.write("# B站视频快速分析报告\n\n")
+        f.write(f"**视频BV号**: {bv_id}\n\n")
+        f.write(f"**分析时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        f.write("---\n\n")
         
-        f.write("【AI 智能分析】\n")
-        f.write("-" * 60 + "\n")
+        f.write("## AI 智能分析\n\n")
         f.write(analysis)
         f.write("\n\n")
         
-        f.write("【完整转录文本】\n")
-        f.write("-" * 60 + "\n")
+        f.write("---\n\n")
+        f.write("## 完整转录文本\n\n")
         f.write(transcript)
         f.write("\n")
     

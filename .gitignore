@@ -17,7 +17,7 @@ downloads/
 
 # 输出结果
 output/
-*.txt
+*.md
 
 # 缓存文件
 cache/

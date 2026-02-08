@@ -45,11 +45,11 @@ class BilibiliDownloader:
         
         # yt-dlp 配置
         ydl_opts = {
-            'format': 'bestaudio/best',
+            'format': 'worstaudio/worst',  # 使用最低音质，节省带宽和时间
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
-                'preferredquality': '192',
+                'preferredquality': '64',  # 64kbps 低音质，足够语音识别使用
             }],
             'outtmpl': os.path.join(self.download_dir, f"{bv_id}.%(ext)s"),
             'quiet': False,

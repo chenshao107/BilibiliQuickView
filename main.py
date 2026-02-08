@@ -14,22 +14,47 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
+# 全局 BilibiliAPI 实例，用于获取视频信息
+_bilibili_api = None
 
-def save_result(bv_id, transcript, analysis):
+def get_bilibili_api():
+    """获取或创建 BilibiliAPI 实例"""
+    global _bilibili_api
+    if _bilibili_api is None:
+        sessdata = os.getenv("BILIBILI_SESSDATA", "")
+        _bilibili_api = BilibiliAPI(sessdata)
+    return _bilibili_api
+
+
+def save_result(bv_id, transcript, analysis, video_title=""):
     """
     保存分析结果到文件
     :param bv_id: 视频BV号
     :param transcript: 转录文本
     :param analysis: AI分析结果
+    :param video_title: 视频标题（可选）
     """
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = os.path.join(output_dir, f"{bv_id}_{timestamp}.md")
+    
+    # 如果有标题，使用标题作为文件名的一部分
+    if video_title:
+        # 清理标题中的非法文件名字符
+        safe_title = "".join(c if c.isalnum() or c in (' ', '-', '_', '（', '）', '【', '】') else '_' for c in video_title)
+        safe_title = safe_title[:50]  # 限制长度
+        output_file = os.path.join(output_dir, f"{bv_id}_{safe_title}_{timestamp}.md")
+    else:
+        output_file = os.path.join(output_dir, f"{bv_id}_{timestamp}.md")
     
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("# B站视频快速分析报告\n\n")
+        
+        # 如果有标题，显示在最前面
+        if video_title:
+            f.write(f"## {video_title}\n\n")
+        
         f.write(f"**视频BV号**: {bv_id}\n\n")
         f.write(f"**分析时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         f.write("---\n\n")
@@ -56,7 +81,19 @@ def process_video(bv_id):
     print(f"🎬 开始处理视频: {bv_id}")
     print("=" * 60 + "\n")
     
+    video_title = ""
+    
     try:
+        # 获取视频标题
+        try:
+            api = get_bilibili_api()
+            video_info = api.get_video_info(bv_id)
+            video_title = video_info.get('title', '')
+            if video_title:
+                print(f"📺 视频标题: {video_title}\n")
+        except Exception as e:
+            print(f"⚠️ 无法获取视频标题: {str(e)}")
+        
         # 步骤1: 下载音频（带缓存）
         print("📥 [1/3] 下载视频音频...")
         downloader = BilibiliDownloader()
@@ -76,8 +113,8 @@ def process_video(bv_id):
         summarizer = DeepSeekSummarizer()
         analysis = summarizer.analyze(transcript, bv_id)
         
-        # 保存结果
-        output_file = save_result(bv_id, transcript, analysis)
+        # 保存结果（带标题）
+        output_file = save_result(bv_id, transcript, analysis, video_title)
         
         # 在控制台显示AI分析结果
         print("\n" + "=" * 60)
